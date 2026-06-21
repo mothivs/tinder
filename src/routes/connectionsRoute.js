@@ -1,7 +1,6 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
-const SECRET_KEY = 'your-super-long-and-secure-secret-key';
 const Connection = require("../models/connection");
 const {User} = require("../models/user");
 
@@ -16,7 +15,7 @@ router.post("/request/send/:status/:userId", async (req, res) => {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        const payload = jwt.verify(token, SECRET_KEY)
+        const payload = jwt.verify(token, process.env.SECRET_KEY)
         const userId = payload.id;
         const { status, userId: requestToId } = req.params;
 
@@ -75,7 +74,7 @@ router.post("/request/review/:status/:requestId", async (req, res)=>{
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
 
-        const payload = jwt.verify(token, SECRET_KEY)
+        const payload = jwt.verify(token, process.env.SECRET_KEY)
         const userId = payload.id;
         const { status, requestId } = req.params;
 

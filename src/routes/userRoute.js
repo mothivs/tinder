@@ -1,9 +1,9 @@
 const express = require("express");
 const { User } = require("../models/user.js")
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-router = express.Router()
-const SECRET_KEY = 'your-super-long-and-secure-secret-key';
+const router = express.Router()
 
 //# CRUD Operations 
 //#---------------------------------/
@@ -28,7 +28,7 @@ router.get("/user/:firstName", async (req, res) => {
       return res.status(401).json({ success: false, error: "No token provided" });
     }
     console.log("token: " + token);
-    const payload = jwt.verify(token, SECRET_KEY)
+    const payload = jwt.verify(token, process.env.SECRET_KEY)
 
     console.log("asdfadsfasdfasdfadsfasdf " + JSON.stringify(payload))
 

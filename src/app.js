@@ -6,6 +6,7 @@ const cookieParser = require("cookie-parser");
 const userRouter = require("./routes/userRoute.js")
 const authRouter = require("./routes/authRoute.js")
 const connectionsRouter = require("./routes/connectionsRoute.js")
+require("dotenv").config();
 
 
 const app = express()
@@ -16,7 +17,7 @@ app.use("/", authRouter);
 app.use("/", connectionsRouter);
 //app.use(express.static("public"));
 
-const SECRET_KEY = 'your-super-long-and-secure-secret-key';
+
 
 
 const storage = multer.diskStorage({

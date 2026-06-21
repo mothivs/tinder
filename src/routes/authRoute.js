@@ -3,8 +3,7 @@ const { User } = require("../models/user.js")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs")
 
-router = express.Router()
-const SECRET_KEY = 'your-super-long-and-secure-secret-key';
+const router = express.Router()
 
 //# Login
 //#--------------------------------------/
@@ -25,7 +24,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         role: "admin"
       }
-      const token = jwt.sign(userProfilePayload, SECRET_KEY, { expiresIn: "7d" })
+      const token = jwt.sign(userProfilePayload, process.env.SECRET_KEY, { expiresIn: "7d" })
       console.log('Generated JWT:', token);
 
       res.cookie("token", token);
