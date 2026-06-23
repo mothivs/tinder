@@ -2,21 +2,22 @@ const express = require("express");
 const { User } = require("../models/user.js")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const userAuth = require("../middlewares/userAuth.js");
 
 const router = express.Router()
 
 //# CRUD Operations 
 //#---------------------------------/
-router.get("/user/:firstName", async (req, res) => {
+router.get("/user/:id", userAuth, async (req, res) => {
   try {
-    const firstName = req.params.firstName;
-    const user = await User.findOne({ firstName }).select("-password");
+    const userId = req.params.id;
+    const user = await User.findOne({ _id: userId }).select("-password");
 
     //^First check No user
     if (!user) {
       return res.status(404).json({
         success: false,
-        error: `User with first name '${firstName}' not found`
+        error: `User with first name '${user.firstName}' not found`
       });
     }
 
@@ -55,7 +56,7 @@ router.get("/user/:firstName", async (req, res) => {
 })
 
 //^ Handles exactly: /user and for fetching all users
-router.get("/user", async (req, res) => {
+router.get("/user", userAuth, async (req, res) => {
   const users = await User.find({}).select("-password");
   res.status(200).json({
     success: true,
@@ -75,13 +76,13 @@ router.get("/user", async (req, res) => {
 
 //^ first time - 200 OK
 //^ Second time - 304 Nothing Modified response
-router.get("/search", (req, res) => {
+router.get("/search", userAuth, (req, res) => {
   const name = req.query.name;
   const role = req.query.role;
   res.send(`User name ${name} with role ${role} is being searched`)
 })
 
-router.post("/user", async (req, res) => {
+router.post("/user", userAuth, async (req, res) => {
   console.log(req.body);
 
   const { firstName, lastName, email, phoneNumber, userName, password, dob } = req.body;
@@ -136,14 +137,14 @@ router.post("/user", async (req, res) => {
   }
 })
 
-router.put("/user/:firstName", async (req, res) => {
+router.put("/user/:id", userAuth, async (req, res) => {
   try {
     console.log(req.body);
-    const currentFirstName = req.params.firstName;
+    const userId = req.params.id;
 
     const { firstName, lastName, gender } = req.body;
 
-    const updatedUser = await User.findOneAndUpdate({ firstName: currentFirstName }, { firstName, lastName, gender }, { new: true, runValidators: true }).select("-password");
+    const updatedUser = await User.findOneAndUpdate({ _id: userId }, { firstName, lastName, gender }, { new: true, runValidators: true }).select("-password");
     if (!updatedUser) {
       return res.status(404).json({
         success: false,
@@ -161,7 +162,7 @@ router.put("/user/:firstName", async (req, res) => {
   }
 })
 
-router.delete("/user/:firstName", async (req, res) => {
+router.delete("/user/:id", userAuth, async (req, res) => {
 
 
   //^Dont mix these two await and promises
@@ -177,8 +178,8 @@ router.delete("/user/:firstName", async (req, res) => {
     */
 
   try {
-    const currentFirstName = req.params.firstName;
-    const userDeleted = await User.findOneAndDelete({ firstName: currentFirstName });
+    const userId = req.params.id;
+    const userDeleted = await User.findOneAndDelete({ _id: userId });
 
     if (!userDeleted) {
       return res.status(404).json({ success: false, message: "User not found" })

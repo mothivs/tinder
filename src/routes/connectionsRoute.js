@@ -2,28 +2,29 @@ const express = require("express");
 const jwt = require("jsonwebtoken");
 const router = express.Router();
 const Connection = require("../models/connection");
-const {User} = require("../models/user");
+const { User } = require("../models/user");
+const userAuth = require("../middlewares/userAuth");
 
 
-router.post("/request/send/:status/:userId", async (req, res) => {
+router.post("/request/send/:status/:userId", userAuth, async (req, res) => {
     try {
-        const userCookies = req.cookies;
-        const { token } = userCookies;
+        const { user } = req;
 
+        /**
         //^ Ensure token exists before verifying [Fastest way to return]
         if (!token) {
             return res.status(401).json({ success: false, message: "Unauthorized" });
         }
+         */
 
-        const payload = jwt.verify(token, process.env.SECRET_KEY)
-        const userId = payload.id;
+        const userId = user.id;
         const { status, userId: requestToId } = req.params;
 
         //^ Exists is faster than actual look up User.findOne as id are indexed by default
         const userExists = await User.exists({ _id: requestToId });
-        if (!userExists){
+        if (!userExists) {
             return res.status(404).json({ message: "User not found" });
-        } 
+        }
 
         //^ 1. Prevent self-requests (400 Bad Request) [The fastest check]
         if (userId === requestToId) {
@@ -64,36 +65,29 @@ router.post("/request/send/:status/:userId", async (req, res) => {
 
 })
 
-router.post("/request/review/:status/:requestId", async (req, res)=>{
-    try{
-        const userCookies = req.cookies;
-        const { token } = userCookies;
+router.post("/request/review/:status/:requestId", userAuth, async (req, res) => {
+    try {
+        const { user } = req;
 
-        //^ Ensure token exists before verifying [Fastest way to return]
-        if (!token) {
-            return res.status(401).json({ success: false, message: "Unauthorized" });
-        }
-
-        const payload = jwt.verify(token, process.env.SECRET_KEY)
-        const userId = payload.id;
+        const userId = user.id;
         const { status, requestId } = req.params;
 
         const allowedStatuses = ["accepted", "rejected"];
-        if(!allowedStatuses.includes(status)) return res.status(400).json({success: false, message: "Status not allowed"})
+        if (!allowedStatuses.includes(status)) return res.status(400).json({ success: false, message: "Status not allowed" })
 
         const connectionReqId = await Connection.findOneAndUpdate(
-            {_id: requestId, requestToId: userId}, 
-            {status: status},           // Update status to 'accepted' or 'rejected'
-            {new: false, runValidators: true}
-     );
+            { _id: requestId, requestToId: userId },
+            { status: status },           // Update status to 'accepted' or 'rejected'
+            { new: false, runValidators: true }
+        );
 
-        if(!connectionReqId) return res.status(404).json({success: false, message: "Invalid Connection"})
-    
+        if (!connectionReqId) return res.status(404).json({ success: false, message: "Invalid Connection" })
+
         connectionReqId.save();
-        res.status(200).json({success: true, message: "Connection status updated"})
-    }catch(err){
+        res.status(200).json({ success: true, message: "Connection status updated" })
+    } catch (err) {
         console.log(err.message);
-        res.status(500).json({success: false, message: "Something went wrong"})
+        res.status(500).json({ success: false, message: "Something went wrong" })
     }
 })
 

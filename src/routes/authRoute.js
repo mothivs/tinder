@@ -25,7 +25,6 @@ router.post("/login", async (req, res) => {
         role: "admin"
       }
       const token = jwt.sign(userProfilePayload, process.env.SECRET_KEY, { expiresIn: "7d" })
-      console.log('Generated JWT:', token);
 
       res.cookie("token", token);
       return res.status(200).json({ success: true, message: "Login successful" })
