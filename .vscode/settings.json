@@ -74,5 +74,15 @@
     }
   ],
   "files.autoSave": "afterDelay",
-  "files.autoSaveDelay": 1000
+  "files.autoSaveDelay": 1000,
+  "eslint.enable": true,
+  "eslint.validate": [
+    "javascript"
+  ],
+  "javascript.validate.enable": true,
+  "javascript.preferences.organizeImports": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
+    "source.fixAll.eslint": "explicit"
+  }
 }

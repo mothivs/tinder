@@ -1,12 +1,11 @@
 const express = require("express");
-const jwt = require("jsonwebtoken");
-const router = express.Router();
 const Connection = require("../models/connection");
 const { User } = require("../models/user");
 const userAuth = require("../middlewares/userAuth");
 
+const router = express.Router();
 
-router.post("/request/send/:status/:userId", userAuth, async (req, res) => {
+router.post("/send/:status/:userId", userAuth, async (req, res) => {
     try {
         const { user } = req;
 
@@ -65,7 +64,7 @@ router.post("/request/send/:status/:userId", userAuth, async (req, res) => {
 
 })
 
-router.post("/request/review/:status/:requestId", userAuth, async (req, res) => {
+router.post("/review/:status/:requestId", userAuth, async (req, res) => {
     try {
         const { user } = req;
 
@@ -78,12 +77,13 @@ router.post("/request/review/:status/:requestId", userAuth, async (req, res) => 
         const connectionReqId = await Connection.findOneAndUpdate(
             { _id: requestId, requestToId: userId },
             { status: status },           // Update status to 'accepted' or 'rejected'
-            { new: false, runValidators: true }
+            { new: true, runValidators: true }
         );
 
         if (!connectionReqId) return res.status(404).json({ success: false, message: "Invalid Connection" })
 
-        connectionReqId.save();
+        //^Not required as FindOneAndUpdate automatically updates
+        //connectionReqId.save();
         res.status(200).json({ success: true, message: "Connection status updated" })
     } catch (err) {
         console.log(err.message);

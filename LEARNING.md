@@ -1,21 +1,63 @@
-# Authentication API
-- POST /signup
-- POST /login
-- GET /profile
+# Learning Goals
 
-# Profile API
-- PATCH /profile
-- DELETE /profile
+Background:
+- 10+ years frontend engineer
+- Learning backend through Namaste NodeJS
+- Building Dev Tinder as primary learning project
 
-# Connections API
-- POST /request/send/:status/:userId    ["interested", "ignored", "accepted", "rejected"]
+Objectives:
+- Strong Node.js fundamentals
+- Database design
+- API design
+- Authentication
+- Redis
+- PostgreSQL
+- Event-driven architecture
+- Microservices
+- System design
 
-- POST /request/review/accepted/:requestId
-- POST /request/review/accepted/:requestId
+Priority:
+1. Learn backend engineering deeply
+2. Learn architecture patterns
+3. Understand scaling concepts
+4. Build production-like projects
 
 
-# All Connections
-- Get all connections list
-/connections
 
-- All Profiles on feed.
+//# Middleware
+//#--------------------------------------/
+/**
+app.use("/",(req,res)=>{
+  //^Route Handlers(RH)
+})
+**1 route can have muliple RHs
+** app.use(ROUTE , RH1, RH2, RH3) 
+ */
+
+app.use("/user-role", (req, res, next) => {
+  console.log("RH1");
+  res.send("response back")
+  next()
+  //res.send("response back")
+},
+  (req, res, next) => {
+    console.log("RH2");
+    res.send("response back 2")
+    next();
+  },
+)
+
+app.use("/admin", adminAuth);
+app.get("/admin", (req, res) => {
+  try {
+    throw new Error("There is something paranormal here")
+    res.send("Gave all admin creds")
+  }
+  catch (err) {
+    res.status(400).send("Bad Request!" + err)
+  }
+})
+
+app.post("/admin", (req, res) => {
+  res.send("Posted all admin creds")
+})
