@@ -2,12 +2,28 @@ const express = require("express");
 const { User } = require("../models/user.js")
 const bcrypt = require("bcryptjs");
 const userAuth = require("../middlewares/userAuth.js");
+const { redisClient } = require("../config/redis.js")
 
 const router = express.Router();
 
 router.get("/", userAuth, async (req, res) => {
   try {
     const userId = req.user.id;
+    const userProfileCacheKey = `profile:${userId}`;
+
+    const cachedUser = await redisClient.get(userProfileCacheKey);
+
+    if (cachedUser) {
+      const user = JSON.parse(cachedUser)
+      console.log(`✅ Returning from Cache: ${userProfileCacheKey}`, user)
+      return res.status(200).json({
+        success: false,
+        data: user
+      })
+    }
+
+    console.log(`❌ Cache miss:  ${userProfileCacheKey}`)
+    
     const user = await User.findOne({ _id: userId }).select("-password");
 
     //^First check No user
@@ -17,6 +33,10 @@ router.get("/", userAuth, async (req, res) => {
         error: 'User not found'
       });
     }
+
+    await redisClient.set(userProfileCacheKey, JSON.stringify(user), "EX", 3600);
+    console.log(`💾 Data cached successfully for ${userProfileCacheKey}`);
+
 
     return res.status(200).json({
       success: true,

@@ -2,7 +2,8 @@ const express = require("express");
 const { User } = require("../models/user.js")
 const { redisClient } = require("../config/redis.js")
 const jwt = require("jsonwebtoken");
-const bcrypt = require("bcryptjs")
+const bcrypt = require("bcryptjs");
+const sendEmailOTP = require("../../utils/notification.js")
 
 const router = express.Router()
 
@@ -45,12 +46,12 @@ router.post("/login", async (req, res) => {
   }
 })
 
-router.post("/logout", async (req, res)=> {
-    res.cookie("token", "", {
-      expires: new Date(0),
-      httpOnly: true
-    });
-      return res.status(200).json({ success: true, message: "Logout successful" })
+router.post("/logout", async (req, res) => {
+  res.cookie("token", "", {
+    expires: new Date(0),
+    httpOnly: true
+  });
+  return res.status(200).json({ success: true, message: "Logout successful" })
 })
 
 router.post("/signup", async (req, res) => {
@@ -108,8 +109,144 @@ router.post("/signup", async (req, res) => {
   }
 })
 
-router.post("/reset-password", async (req, res)=> {
-  //# Write the logic for reset password here.
+
+router.post("/generate-otp", async (req, res) => {
+  //# Write the logic for generating OTP here.
+  try {
+    const { emailId } = req.body || {};
+
+    if (!emailId) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+
+    const otpAttempts = Number(await redisClient.get(`otpAttemptCount:${emailId}`)) || 0;
+
+    if (otpAttempts >= 5) {
+      return res.status(429).json({ success: false, message: "Max limit of 5 OTPs reached! Locked for 5 mins." });
+    }
+
+    //^ This is not the safe way of generating OTP
+    //^Math.random() is not cryptographically secure
+    //^It uses a predictable algorithm that malicious hackers can mathematically guess 
+    //^ if they monitor your server's outputs over time
+    //# Use Node.js's native crypto module
+    //  const OTP = Math.floor(100000 + Math.random() * 900000);
+    //  console.log(OTP);
+    //^write logic of sending OTP to this emailID
+    const otp = await sendEmailOTP(emailId);
+    if (!otp) {
+      return res.status(500).json({ success: false, message: "Failed to dispatch email." });
+    }
+
+    // 3. Store OTP in Redis with a 5-minute (300 seconds) expiration window
+    // Key structured uniquely as "otp:emailId"
+    await redisClient.set(`otp:${emailId}`, otp, {
+      EX: 300
+    });
+
+    await redisClient.set(`otpAttemptCount:${emailId}`, 0);
+    return res.status(200).json({ success: true, message: "OTP sent successfully!" });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: "Something went wrong!" })
+  }
 })
+
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { emailId, otp } = req.body || {};
+
+    if (!emailId || !otp) {
+      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+    }
+
+    const otpAttempts = Number(await redisClient.get(`otpAttemptCount:${emailId}`));
+
+    if (otpAttempts >= 5) {
+      return res.status(429).json({ success: false, message: "Max limit of 5 incorrect OTPs reached! Locked for 5 mins." });
+    }
+
+    const sentOTP = await redisClient.get(`otp:${emailId}`);
+
+    //^ Check if OTP has completely timed out in Redis
+    if (!sentOTP) {
+      return res.status(400).json({ success: false, message: "OTP has expired or was never requested." });
+    }
+
+    if (Number(otp) !== Number(sentOTP)) {
+      await redisClient.incr(`otpAttemptCount:${emailId}`);
+      //^ Calculate remaining attempts dynamically for user feedback
+      const remaining = 5 - (otpAttempts + 1);
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP! You have ${remaining} attempts remaining.`
+      });
+    }
+
+    await redisClient.del(`otp:${emailId}`);
+    await redisClient.del(`otpAttemptCount:${emailId}`);
+
+    const jwtOTPPayload = { emailId }
+
+    const jwtToken = jwt.sign(jwtOTPPayload, process.env.SECRET_KEY, { expiresIn: 300 })
+
+    return res.status(200).json({ success: true, message: "OTP verified successfully!", token: jwtToken });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: "Something went wrong!" })
+  }
+})
+
+router.post("/reset-password", async (req, res) => {
+  //# Write the logic for reset password here.
+  try {
+    const { emailId, oldPassword, newPassword, token } = req.body || {};
+
+    if (!emailId || !oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Need email, old password, and new password" })
+    }
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: "Missing Token!" })
+    }
+
+    const decodedToken = jwt.verify(token, process.env.OTP_TOKEN_SECRET_KEY);
+
+    if (decodedToken.emailId !== emailId) {
+      return res.status(401).json({ success: false, message: "Invalid Token!" })
+    }
+
+    if (oldPassword === newPassword) {
+      return res.status(400).json({ success: false, message: "New Password cannot be same as old Password" });
+    }
+
+    const user = await User.findOne({ email: emailId });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found!" })
+    }
+
+    const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
+
+    if (!isOldPasswordValid) {
+      return res.status(401).json({ success: false, message: "Invalid Password!" })
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    await redisClient.del(`otp:${emailId}`);
+    await redisClient.del(`otp:${emailId}:token`);
+
+    return res.status(200).json({ success: true, message: "Password changed successfully" })
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: "Something went wrong!" })
+  }
+})
+
+
 
 module.exports = router

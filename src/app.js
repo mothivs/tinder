@@ -13,6 +13,7 @@ const PORT = 3000;
 
 const app = express()
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use("/", authRouter);
@@ -20,8 +21,6 @@ app.use("/users", userRouter);
 app.use("/request", requestRouter);
 app.use("/profile", profileRouter);
 app.use("/uploads", uploadRouter);
-
-
 
 
 //# Connect to DB/Redis and START the Server
@@ -36,10 +35,6 @@ Promise.all([connectToDB(), redisClient.connect()]).then(() => {
   console.error("Connection failed:", err);
   process.exitCode = 1;
 })
-
-
-
-
 
 
 //# Error handling

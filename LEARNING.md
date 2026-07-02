@@ -61,3 +61,10 @@ app.get("/admin", (req, res) => {
 app.post("/admin", (req, res) => {
   res.send("Posted all admin creds")
 })
+
+
+@TODO
+1. Finish pagination first - From Deepseek then next task.
+2. schema methods
+3. pre save functions
+4. ref and populate

@@ -13,16 +13,50 @@ const router = express.Router()
 
 
 //^ Handles exactly: /user and for fetching all users
+//# This is called cache aside pattern
 router.get("/", userAuth, async (req, res) => {
-  const users = await User.find({}).select("-password");
-  console.log("here is res URL    " + req.originalUrl)
-  const redisData = await redisClient.get("Mothi");
-  console.log("Here is the redis data:  " + redisData)
-  res.status(200).json({
-    success: true,
-    count: users.length,
-    data: users
-  })
+  const fullCacheUrlKey = `api:${req.originalUrl}`;
+  try {
+    const cachedUsers = await redisClient.get(fullCacheUrlKey);
+
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit) || 10);
+    const skip = (page-1) * limit;
+
+    if (cachedUsers) {
+      const users = JSON.parse(cachedUsers)
+      console.log(`✅ Returning from Cache: ${fullCacheUrlKey}`, users)
+      return res.status(200).json({
+        success: true,
+        count: users.length,
+        data: users
+      })
+    }
+
+    console.log(`❌ Cache miss:  ${fullCacheUrlKey}`)
+    
+
+    //# Not fool proof finish this off first.
+    const users = await User.find({}).select("-password").skip(skip).limit(limit).lean();
+    // 3. Save to Cache with an Expiration Time (e.g., 3600 seconds / 1 hour)
+    // 'EX' sets the TTL so your data doesn't become permanently stale
+    //^ 3600 - 1 hr TTL
+    await redisClient.set(`api:${req.originalUrl}`, JSON.stringify(users), "EX", 3600);
+    console.log(`💾 Data cached successfully for ${fullCacheUrlKey}`);
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users
+    })
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({
+      success: false,
+      message: "Internal Server Error"
+    });
+  }
+
 });
 
 /*
