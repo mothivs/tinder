@@ -5,7 +5,6 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const sendEmailOTP = require("../../utils/notification.js")
 
-const router = express.Router()
 
 //# Login
 //#--------------------------------------/
@@ -26,14 +25,31 @@ router.post("/login", async (req, res) => {
         id: user._id,
         role: "admin"
       }
-      const token = jwt.sign(userProfilePayload, process.env.SECRET_KEY, { expiresIn: "7d" })
+      const aceessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "15m" })
+      const refreshToken = jwt.sign(userProfilePayload, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: "7d" })
 
       //^ Chain the response instead
-      //*res.cookie("token", token);
+      //*res.cookie("access_token", aceessToken);
       //*return res.status(200).json({ success: true, message: "Login successful" })
 
       await redisClient.set("Mothi", "This is my first redis variable");
-      return res.cookie("token", token, { httpOnly: true }).status(200).json({ success: true, message: "Login successful" })
+      return res.cookie("access_token", aceessToken,
+        {
+          httpOnly: true,                                // Prevent client-side JS from reading the cookie (XSS protection)
+          secure: process.env.NODE_ENV === 'production', // Send cookie over HTTPS only 
+          sameSite: process.env.SAME_SITE_LAX,           // To avoid CSRF attacks ('lax' for local and 'strict' for prod)
+          maxAge: 15 * 60 * 1000                         // In milliseconds(1 sec = 1000ms)
+        },
+      )
+        .cookie("refresh_token", refreshToken,
+          {
+            httpOnly: true,                                // Prevent client-side JS from reading the cookie (XSS protection)
+            secure: process.env.NODE_ENV === 'production', // Send cookie over HTTPS only 
+            sameSite: process.env.SAME_SITE_LAX,           // To avoid CSRF attacks ('lax' for local and 'strict' for prod)
+            path: "/refresh",                               // Applicable only for this path
+            maxAge: 7 * 24 * 60 * 60 * 1000                // In milliseconds(1 sec = 1000ms)
+          },)
+        .status(200).json({ success: true, message: "Login successful" })
     }
     else {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
@@ -108,7 +124,6 @@ router.post("/signup", async (req, res) => {
     return res.status(400).json({ error: err.message });
   }
 })
-
 
 router.post("/generate-otp", async (req, res) => {
   //# Write the logic for generating OTP here.
@@ -244,6 +259,46 @@ router.post("/reset-password", async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ success: false, message: "Something went wrong!" })
+  }
+})
+
+router.post("/refresh", async (req, res) => {
+  //# Write the logic for reset password here.
+  try {
+    const { refreshToken } = req.cookies;
+
+    if (!refreshToken) {
+      return res.status(401).json({ success: false, message: "Missing Token!" })
+    }
+
+    const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET_KEY);
+
+    const userProfilePayload = {
+      id: decodedRefreshToken.id,
+      role: "admin"
+    }
+
+    const newAccessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "15m" })
+
+    return res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+      maxAge: 15 * 60 * 1000
+    })
+      .status(200).json({ success: true, message: "New Access Token sent" });
+
+  } catch (err) {
+    console.error("Auth Error:", err.message);
+    //# 4. Handle JWT-specific verification failures
+    if (err.name === 'JsonWebTokenError'|| err.name === 'TokenExpiredError') {
+      res.clearCookie("accessToken", { path: "/" });
+        res.clearCookie("refreshToken", { path: "/refresh" });
+      return res.status(401).json({ success: false, message: "Unauthorized: Invalid or expired token" });
+    }
+    
+    //# 5. Catch actual server-side errors
+    return res.status(500).json({ success: false, message: "Internal Server Error" });
   }
 })
 

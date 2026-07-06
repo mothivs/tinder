@@ -2,14 +2,14 @@ const jwt = require("jsonwebtoken");
 
 const userAuth = (req, res, next) => {
     try {
-        const { token } = req.cookies;
+        const { aceessToken } = req.cookies;
 
         //# 1. Fail early if no token is provided
-        if (!token) {
+        if (!aceessToken) {
             return res.status(401).json({ success: false, message: "Unauthorized: No token provided" });
         }
         //# 2. Verify token (Will throw an error if invalid/expired)
-        const user = jwt.verify(token, process.env.SECRET_KEY);
+        const user = jwt.verify(aceessToken, process.env.ACCESS_TOKEN_SECRET_KEY);
 
         //# 3. Attach user payload and proceed
         req.user = user;

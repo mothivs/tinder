@@ -7,6 +7,7 @@ const authRouter = require("./routes/authRoutes.js")
 const requestRouter = require("./routes/requestRoutes.js")
 const profileRouter = require("./routes/profileRoutes.js")
 const uploadRouter = require("./routes/uploadRoutes.js")
+const rateLimiter = require("./middlewares/rateLimiter.js")
 require("dotenv").config();
 
 const PORT = 3000;
@@ -16,6 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+app.use(rateLimiter)
 app.use("/", authRouter);
 app.use("/users", userRouter);
 app.use("/request", requestRouter);
