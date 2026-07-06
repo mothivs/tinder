@@ -3,8 +3,9 @@ const { User } = require("../models/user.js")
 const { redisClient } = require("../config/redis.js")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const sendEmailOTP = require("../../utils/notification.js")
+const sendEmailOTP = require("../../utils/notification.js");
 
+const router = express.Router();
 
 //# Login
 //#--------------------------------------/
@@ -265,13 +266,13 @@ router.post("/reset-password", async (req, res) => {
 router.post("/refresh", async (req, res) => {
   //# Write the logic for reset password here.
   try {
-    const { refreshToken } = req.cookies;
+    const { refresh_token } = req.cookies;
 
-    if (!refreshToken) {
+    if (!refresh_token) {
       return res.status(401).json({ success: false, message: "Missing Token!" })
     }
 
-    const decodedRefreshToken = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET_KEY);
+    const decodedRefreshToken = jwt.verify(refresh_token, process.env.REFRESH_TOKEN_SECRET_KEY);
 
     const userProfilePayload = {
       id: decodedRefreshToken.id,
@@ -280,7 +281,7 @@ router.post("/refresh", async (req, res) => {
 
     const newAccessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "15m" })
 
-    return res.cookie("accessToken", newAccessToken, {
+    return res.cookie("access_token", newAccessToken, {
       httpOnly: true,
       secure: true,
       sameSite: "Strict",

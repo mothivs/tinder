@@ -7,7 +7,7 @@ const authRouter = require("./routes/authRoutes.js")
 const requestRouter = require("./routes/requestRoutes.js")
 const profileRouter = require("./routes/profileRoutes.js")
 const uploadRouter = require("./routes/uploadRoutes.js")
-const { profileLimiter, authLimiter, uploadLimiter } = require("./middlewares/rateLimiter.js");
+const { profileLimiter, authLimiter, uploadLimiter } = require("./middlewares/rateLimiter.js"); 
 const userAuth = require("./middlewares/userAuth.js")
 require("dotenv").config();
 
