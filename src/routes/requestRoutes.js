@@ -1,11 +1,10 @@
 const express = require("express");
 const Connection = require("../models/connection");
 const { User } = require("../models/user");
-const userAuth = require("../middlewares/userAuth");
 
 const router = express.Router();
 
-router.post("/send/:status/:userId", userAuth, async (req, res) => {
+router.post("/send/:status/:userId", async (req, res) => {
     try {
         const { user } = req;
 
@@ -64,7 +63,7 @@ router.post("/send/:status/:userId", userAuth, async (req, res) => {
 
 })
 
-router.post("/review/:status/:requestId", userAuth, async (req, res) => {
+router.post("/review/:status/:requestId", async (req, res) => {
     try {
         const { user } = req;
 

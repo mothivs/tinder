@@ -7,7 +7,8 @@ const authRouter = require("./routes/authRoutes.js")
 const requestRouter = require("./routes/requestRoutes.js")
 const profileRouter = require("./routes/profileRoutes.js")
 const uploadRouter = require("./routes/uploadRoutes.js")
-const rateLimiter = require("./middlewares/rateLimiter.js")
+const { profileLimiter, authLimiter, uploadLimiter } = require("./middlewares/rateLimiter.js");
+const userAuth = require("./middlewares/userAuth.js")
 require("dotenv").config();
 
 const PORT = 3000;
@@ -17,12 +18,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-app.use(rateLimiter)
-app.use("/", authRouter);
-app.use("/users", userRouter);
-app.use("/request", requestRouter);
-app.use("/profile", profileRouter);
-app.use("/uploads", uploadRouter);
+
+//^If your application sits behind a reverse proxy (like Nginx, Cloudflare, Heroku, or AWS ALB), 
+//^ express-rate-limit will see the IP address of the proxy rather than the real client. 
+//^ This means one user could hit the limit and accidentally block all users.
+app.set('trust proxy', 1);
+
+// 1. Strict limits for authentication routes
+app.use("/", authLimiter, authRouter); 
+
+// 2. Strict limits for heavy file uploads
+app.use("/uploads", uploadLimiter, uploadRouter); 
+
+// 3. Standard limits for LoggedIn endpoints first use userAuth middleware.
+app.use("/users", userAuth, profileLimiter, userRouter);
+app.use("/request", userAuth, profileLimiter, requestRouter);
+app.use("/profile", userAuth, profileLimiter, profileRouter);
 
 
 //# Connect to DB/Redis and START the Server

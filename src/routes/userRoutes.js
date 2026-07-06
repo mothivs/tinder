@@ -1,6 +1,5 @@
 const express = require("express");
 const { User } = require("../models/user.js")
-const userAuth = require("../middlewares/userAuth.js");
 const { redisClient } = require("../config/redis.js")
 
 const router = express.Router()
@@ -14,7 +13,7 @@ const router = express.Router()
 
 //^ Handles exactly: /user and for fetching all users
 //# This is called cache aside pattern
-router.get("/", userAuth, async (req, res) => {
+router.get("/", async (req, res) => {
   const fullCacheUrlKey = `api:${req.originalUrl}`;
   try {
     const cachedUsers = await redisClient.get(fullCacheUrlKey);
@@ -70,7 +69,7 @@ router.get("/", userAuth, async (req, res) => {
 
 //^ first time - 200 OK
 //^ Second time - 304 Nothing Modified response
-router.get("/search", userAuth, (req, res) => {
+router.get("/search", (req, res) => {
   const name = req.query.name;
   const role = req.query.role;
   res.send(`User name ${name} with role ${role} is being searched`)
