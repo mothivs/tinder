@@ -7,6 +7,7 @@ const authRouter = require("./routes/authRoutes.js")
 const requestRouter = require("./routes/requestRoutes.js")
 const profileRouter = require("./routes/profileRoutes.js")
 const uploadRouter = require("./routes/uploadRoutes.js")
+const connectionRouter = require("./routes/connectionRoutes.js")
 const { profileLimiter, authLimiter, uploadLimiter } = require("./middlewares/rateLimiter.js"); 
 const userAuth = require("./middlewares/userAuth.js")
 require("dotenv").config();
@@ -33,6 +34,7 @@ app.use("/uploads", uploadLimiter, uploadRouter);
 // 3. Standard limits for LoggedIn endpoints first use userAuth middleware.
 app.use("/users", userAuth, profileLimiter, userRouter);
 app.use("/request", userAuth, profileLimiter, requestRouter);
+app.use("/connections", userAuth, profileLimiter, connectionRouter);
 app.use("/profile", userAuth, profileLimiter, profileRouter);
 
 

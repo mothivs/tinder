@@ -33,7 +33,7 @@ const createLimiter = (routeKey, minutes, maxRequests) => {
 };
 
 
-const authLimiter    = createLimiter('auth', 60, 5);      // 5 requests per hour
+const authLimiter    = createLimiter('auth', 60, 20);      // 10 requests per hour
 const uploadLimiter  = createLimiter('uploads', 5, 10);    // 10 requests per 5 mins
 const profileLimiter = createLimiter('profile', 15, 100);  // 100 requests per 15 mins
 

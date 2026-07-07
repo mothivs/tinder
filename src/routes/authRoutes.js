@@ -26,7 +26,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         role: "admin"
       }
-      const aceessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "15m" })
+      const aceessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "1d" })
       const refreshToken = jwt.sign(userProfilePayload, process.env.REFRESH_TOKEN_SECRET_KEY, { expiresIn: "7d" })
 
       //^ Chain the response instead
@@ -39,7 +39,7 @@ router.post("/login", async (req, res) => {
           httpOnly: true,                                // Prevent client-side JS from reading the cookie (XSS protection)
           secure: process.env.NODE_ENV === 'production', // Send cookie over HTTPS only 
           sameSite: process.env.SAME_SITE_LAX,           // To avoid CSRF attacks ('lax' for local and 'strict' for prod)
-          maxAge: 15 * 60 * 1000                         // In milliseconds(1 sec = 1000ms)
+          maxAge: 1 * 24 * 60 * 60 * 1000                         // In milliseconds(1 sec = 1000ms)
         },
       )
         .cookie("refresh_token", refreshToken,
