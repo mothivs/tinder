@@ -8,6 +8,7 @@ const requestRouter = require("./routes/requestRoutes.js")
 const profileRouter = require("./routes/profileRoutes.js")
 const uploadRouter = require("./routes/uploadRoutes.js")
 const connectionRouter = require("./routes/connectionRoutes.js")
+const notificationRouter = require("./routes/notificationRoutes.js")
 const { profileLimiter, authLimiter, uploadLimiter } = require("./middlewares/rateLimiter.js"); 
 const userAuth = require("./middlewares/userAuth.js")
 require("dotenv").config();
@@ -36,6 +37,7 @@ app.use("/users", userAuth, profileLimiter, userRouter);
 app.use("/request", userAuth, profileLimiter, requestRouter);
 app.use("/connections", userAuth, profileLimiter, connectionRouter);
 app.use("/profile", userAuth, profileLimiter, profileRouter);
+app.use("/notifications", userAuth, profileLimiter, notificationRouter);
 
 
 //# Connect to DB/Redis and START the Server

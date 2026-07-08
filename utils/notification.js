@@ -4,7 +4,6 @@ const crypto = require('crypto');
 async function sendEmailOTP(userEmail) {
   // 1. Generate secure 6-digit OTP
   const otp = crypto.randomInt(100000, 1000000);
-
   // 2. Configure your email server settings
   const transporter = nodemailer.createTransport({
     service: 'gmail', // Works for Gmail, Outlook, Yahoo, etc.
@@ -27,10 +26,31 @@ async function sendEmailOTP(userEmail) {
   try {
     await transporter.sendMail(mailOptions);
     console.log(`OTP sent successfully to ${userEmail}`);
-    return otp; // Return this to save in your database/cache for verification
   } catch (error) {
     console.error('Email failed to send:', error);
   }
 }
 
 module.exports = sendEmailOTP;
+
+async function sendConnectionAcceptedEmail({ to, accepterName }) {
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: 'mothilal.vs@gmail.com',
+      pass: 'tusf rhfh xzxn phij'
+    }
+  });
+
+  const mailOptions = {
+    from: '"Tinder Notifications" mothilal.vs@gmail.com',
+    to,
+    subject: 'Your connection request was accepted',
+    text: `${accepterName} accepted your connection request.`,
+    html: `<p><b>${accepterName}</b> accepted your connection request.</p>`
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports.sendConnectionAcceptedEmail = sendConnectionAcceptedEmail;

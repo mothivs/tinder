@@ -1,6 +1,8 @@
 const express = require("express");
 const Connection = require("../models/connection");
 const { User } = require("../models/user");
+const { notificationQueue } = require("../queues");
+const { notificationTypes } = require("../services/notification.service");
 
 const router = express.Router();
 
@@ -87,7 +89,7 @@ router.post("/review/:status/:requestId", async (req, res) => {
         console.log("connectionReq", connectionReq)
         await connectionReq.populate([
             { path: "requestToId", select: "firstName" },
-            { path: "requestFromId", select: "firstName" }
+            { path: "requestFromId", select: "firstName email" }
         ])
         const requestFrom = connectionReq.requestFromId.firstName;
         const requestTo = connectionReq.requestToId.firstName;
@@ -95,7 +97,32 @@ router.post("/review/:status/:requestId", async (req, res) => {
         //^Not required as FindOneAndUpdate automatically updates
         if (connectionReq.status === "interested") {
             connectionReq.status = status;
-            connectionReq.save();
+            await connectionReq.save();
+        } else {
+            return res.status(400).json({ success: false, message: "Connection request was already reviewed" });
+        }
+
+        if (status === "accepted") {
+            const job = await notificationQueue.add(
+                "connection-accepted",
+                {
+                    recipientUserId: connectionReq.requestFromId._id,
+                    recipientEmail: connectionReq.requestFromId.email,
+                    accepterName: requestTo,
+                    type: notificationTypes.CONNECTION_ACCEPTED
+                },
+                {
+                    attempts: 3,
+                    backoff: {
+                        type: "exponential",
+                        delay: 2000
+                    },
+                    removeOnComplete: true,
+                    removeOnFail: false
+                }
+            );
+
+            console.log("Job created:", job.id);
         }
 
         res.status(200).json({ success: true, message: `${requestTo} ${status} connection request from ${requestFrom}` })
