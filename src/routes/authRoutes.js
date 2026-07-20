@@ -3,7 +3,8 @@ const { User } = require("../models/user.js")
 const { redisClient } = require("../config/redis.js")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const sendEmailOTP = require("../../utils/notification.js");
+const { generateSixDigitOTP } = require("../utils/helper.js");
+const { emailOtpQueue } = require("../queues/emailotp.queue.js");
 
 const router = express.Router();
 
@@ -149,10 +150,8 @@ router.post("/generate-otp", async (req, res) => {
     //  const OTP = Math.floor(100000 + Math.random() * 900000);
     //  console.log(OTP);
     //^write logic of sending OTP to this emailID
-    const otp = await sendEmailOTP(emailId);
-    if (!otp) {
-      return res.status(500).json({ success: false, message: "Failed to dispatch email." });
-    }
+
+    const otp = generateSixDigitOTP();
 
     // 3. Store OTP in Redis with a 5-minute (300 seconds) expiration window
     // Key structured uniquely as "otp:emailId"
@@ -160,7 +159,29 @@ router.post("/generate-otp", async (req, res) => {
       EX: 300
     });
 
-    await redisClient.set(`otpAttemptCount:${emailId}`, 0);
+    //# Instead of sendind email right away do it async
+    //await sendEmailOTP(emailId);
+
+    //^ Job = ("JobName", Payload, {JobMetaData - retry attemps, type, should remove or not})
+    const job = await emailOtpQueue.add(
+      "send-email-otp",
+      {
+        userEmail: emailId,
+        otp
+      },
+      {
+        attempts: 3,
+        backoff: {
+          type: "exponential",
+          delay: 2000
+        },
+        removeOnComplete: true,
+        removeOnFail: false
+      }
+    )
+
+    console.log("EmailOTP Job created", job.id);
+    await redisClient.set(`otpAttemptCount:${emailId}`, 0, {EX: 300});
     return res.status(200).json({ success: true, message: "OTP sent successfully!" });
 
   } catch (err) {
@@ -292,12 +313,12 @@ router.post("/refresh", async (req, res) => {
   } catch (err) {
     console.error("Auth Error:", err.message);
     //# 4. Handle JWT-specific verification failures
-    if (err.name === 'JsonWebTokenError'|| err.name === 'TokenExpiredError') {
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
       res.clearCookie("accessToken", { path: "/" });
-        res.clearCookie("refreshToken", { path: "/refresh" });
+      res.clearCookie("refreshToken", { path: "/refresh" });
       return res.status(401).json({ success: false, message: "Unauthorized: Invalid or expired token" });
     }
-    
+
     //# 5. Catch actual server-side errors
     return res.status(500).json({ success: false, message: "Internal Server Error" });
   }

@@ -1,5 +1,5 @@
 const { Notification } = require("../models/notification");
-const { sendConnectionAcceptedEmail } = require("../../utils/notification");
+const { sendConnectionAcceptedEmail } = require("../utils/notification");
 
 const notificationTypes = {
     CONNECTION_ACCEPTED: "CONNECTION_ACCEPTED"

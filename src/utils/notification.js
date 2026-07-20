@@ -1,9 +1,7 @@
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
 
-async function sendEmailOTP(userEmail) {
+async function sendEmailOTP({userEmail, otp}) {
   // 1. Generate secure 6-digit OTP
-  const otp = crypto.randomInt(100000, 1000000);
   // 2. Configure your email server settings
   const transporter = nodemailer.createTransport({
     service: 'gmail', // Works for Gmail, Outlook, Yahoo, etc.
@@ -31,7 +29,7 @@ async function sendEmailOTP(userEmail) {
   }
 }
 
-module.exports = sendEmailOTP;
+
 
 async function sendConnectionAcceptedEmail({ to, accepterName }) {
   const transporter = nodemailer.createTransport({
@@ -53,4 +51,7 @@ async function sendConnectionAcceptedEmail({ to, accepterName }) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports.sendConnectionAcceptedEmail = sendConnectionAcceptedEmail;
+module.exports = {
+  sendEmailOTP, 
+  sendConnectionAcceptedEmail
+};

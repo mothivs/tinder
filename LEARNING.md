@@ -63,8 +63,15 @@ app.post("/admin", (req, res) => {
 })
 
 
-@TODO
+## TODO
 1. Finish pagination first - From Deepseek then next task.
 2. schema methods
 3. pre save functions
 4. ref and populate
+
+
+# TODO
+1. what if partial jobs fail where does it goes?
+
+[!Tip]
+
