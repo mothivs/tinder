@@ -1,9 +1,12 @@
-const mongoose = require("mongoose");
-const bcrypt = require("bcryptjs")
-const { User } = require("./src/models/user");
-
-const dummyUsers = [
-  { firstName: "Dev", lastName: "Rao", userName: "devrao76", email: "devrao76@example.com", password: "password123", phoneNumber: "+919139761700", gender: "Non-binary" },
+/**
+ * @param { import("knex").Knex } knex
+ * @returns { Promise<void> } 
+ */
+exports.seed = async function(knex) {
+  // Deletes ALL existing entries
+  await knex('users').del()
+  await knex('users').insert([
+    { firstName: "Dev", lastName: "Rao", userName: "devrao76", email: "devrao76@example.com", password: "password123", phoneNumber: "+919139761700", gender: "Non-binary" },
   { firstName: "Riya", lastName: "Sen", userName: "riyasen95", email: "riyasen95@example.com", password: "password123", phoneNumber: "+919307245808", gender: "Female" },
   { firstName: "Siddharth", lastName: "Mehra", userName: "siddharthmehra55", email: "siddharthmehra55@example.com", password: "password123", phoneNumber: "+919331105900", gender: "Male" },
   { firstName: "Kabir", lastName: "Joshi", userName: "kabirjoshi90", email: "kabirjoshi90@example.com", password: "password123", phoneNumber: "+918119997696", gender: "Male" },
@@ -23,42 +26,5 @@ const dummyUsers = [
   { firstName: "Amit", lastName: "Bose", userName: "amitbose48", email: "amitbose48@example.com", password: "password123", phoneNumber: "+917199381245", gender: "Male" },
   { firstName: "Isha", lastName: "Patel", userName: "ishapatel69", email: "ishapatel69@example.com", password: "password123", phoneNumber: "+919497760714", gender: "Female" },
   { firstName: "Ananya", lastName: "Verma", userName: "ananyaverma32", email: "ananyaverma32@example.com", password: "password123", phoneNumber: "+917193494983", gender: "Female" }
-];
-
-async function seedDatabase() {
-  try {
-    const URI =
-  "mongodb+srv://mothilalvs_mongo:F9zena2EtSyrdtCt@mothicluster.shduzgs.mongodb.net/devTinder?retryWrites=true&w=majority&appName=MothiCluster";
-
-    await mongoose.connect(URI);
-    console.log("Connected to MongoDB...");
-
-    await User.deleteMany({});
-    console.log("Old users cleared...");
-
-    console.log("Encrypting passwords... Please wait.");
-    const SALT_ROUNDS = 10;
-
-    // Loop through users and replace their plain-text passwords with secure hashes
-    const encryptedUsers = await Promise.all(
-      dummyUsers.map(async (user) => {
-        const hashedPassword = await bcrypt.hash(user.password, SALT_ROUNDS);
-        return {
-          ...user,
-          password: hashedPassword
-        };
-      })
-    );
-
-    await User.insertMany(encryptedUsers);
-    console.log("Successfully encrypted passwords and seeded 20 users!");
-
-  } catch (error) {
-    console.error("Seeding failed:", error);
-  } finally {
-    await mongoose.disconnect();
-    console.log("Disconnected from MongoDB.");
-  }
-}
-
-seedDatabase();
+  ]);
+};

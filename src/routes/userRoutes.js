@@ -1,11 +1,9 @@
 const express = require("express");
-const { User } = require("../models/user.js")
+//const { User } = require("../models/user.js")
 const { redisClient } = require("../config/redis.js")
-
+const db = require("../../db/knex.js")
+const { SAFE_USER_COLUMNS } = require("../utils/constants.js")
 const router = express.Router()
-
-
-
 
 //# CRUD Operations Logged In Routes
 //#---------------------------------/
@@ -36,7 +34,7 @@ router.get("/", async (req, res) => {
     
 
     //# Not fool proof finish this off first.
-    const users = await User.find({}).select("-password").skip(skip).limit(limit).lean();
+    const users = await db("users").select(SAFE_USER_COLUMNS).offset(skip).limit(limit);
     // 3. Save to Cache with an Expiration Time (e.g., 3600 seconds / 1 hour)
     // 'EX' sets the TTL so your data doesn't become permanently stale
     //^ 3600 - 1 hr TTL

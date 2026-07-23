@@ -7,7 +7,7 @@ async function sendEmailOTP({userEmail, otp}) {
     service: 'gmail', // Works for Gmail, Outlook, Yahoo, etc.
     auth: {
       user: 'mothilal.vs@gmail.com',
-      pass: 'tusf rhfh xzxn phij'
+      pass: process.env.GMAIL_PASSWORD
     }
   });
 
@@ -30,13 +30,12 @@ async function sendEmailOTP({userEmail, otp}) {
 }
 
 
-
 async function sendConnectionAcceptedEmail({ to, accepterName }) {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
       user: 'mothilal.vs@gmail.com',
-      pass: 'tusf rhfh xzxn phij'
+      pass: process.env.GMAIL_PASSWORD
     }
   });
 

@@ -1,10 +1,14 @@
 const express = require("express");
-const { User } = require("../models/user.js")
+//const { User } = require("../models/user.js")
 const bcrypt = require("bcryptjs");
 const userAuth = require("../middlewares/userAuth.js");
 const { redisClient } = require("../config/redis.js")
-
+const db = require("../../db/knex.js")
+const { SAFE_USER_COLUMNS } = require("../utils/constants.js");
 const router = express.Router();
+
+
+
 
 router.get("/", userAuth, async (req, res) => {
   try {
@@ -23,8 +27,8 @@ router.get("/", userAuth, async (req, res) => {
     }
 
     console.log(`❌ Cache miss:  ${userProfileCacheKey}`)
-    
-    const user = await User.findOne({ _id: userId }).select("-password");
+
+    const user = await db("users").select(SAFE_USER_COLUMNS).where({ id: userId }).first();
 
     //^First check No user
     if (!user) {
@@ -58,7 +62,9 @@ router.patch("/", userAuth, async (req, res) => {
 
     const { firstName, lastName, gender } = req.body;
 
-    const updatedUser = await User.findOneAndUpdate({ _id: userId }, { firstName, lastName, gender }, { new: true, runValidators: true }).select("-password");
+    const updatedUser = await db("users").where({ id: userId })
+      .update({ firstName, lastName, gender }).returning(SAFE_USER_COLUMNS);
+
     if (!updatedUser) {
       return res.status(404).json({
         success: false,
@@ -72,6 +78,7 @@ router.patch("/", userAuth, async (req, res) => {
     })
   }
   catch (err) {
+    console.log("erreor", err.message)
     return res.status(500).send("Server error occured");
   }
 })
@@ -96,7 +103,7 @@ router.post("/change-password", userAuth, async (req, res) => {
       });
     }
 
-    const user = await User.findOne({ _id: userId });
+    const user = await db("users").select('*').where({ id: userId }).first();
 
     if (user.userName !== userName) {
       return res.status(401).json({ success: false, message: "invalid username" })
@@ -113,12 +120,12 @@ router.post("/change-password", userAuth, async (req, res) => {
     //^ One additional DB call since we already bought user.findOne to memory
     //*await User.findOneAndUpdate({_id: userId}, {password: newPassword})
     const hashedNewPassword = await bcrypt.hash(newPassword, 10)
-    user.password = hashedNewPassword;
-    await user.save();
+    //user.password = hashedNewPassword;
+    await db("users").where({ id: userId }).update({ password: hashedNewPassword });
     return res.status(200).json({ success: true, message: "Password changed succesfully" })
 
   } catch (err) {
-    console.log(err);
+    console.log(err.message);
     res.status(500).json({ success: false, message: "Something went wrong" })
   }
 })
@@ -140,7 +147,7 @@ router.delete("/", userAuth, async (req, res) => {
 
   try {
     const userId = req.user.id;
-    const userDeleted = await User.findOneAndDelete({ _id: userId });
+    const userDeleted = await db("users").where({ id: userId }).del();
 
     if (!userDeleted) {
       return res.status(404).json({ success: false, message: "User not found" })

@@ -1,12 +1,16 @@
 const express = require("express");
-const { User } = require("../models/user.js")
+//const { User } = require("../models/user.js")
 const { redisClient } = require("../config/redis.js")
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const { generateSixDigitOTP } = require("../utils/helper.js");
 const { emailOtpQueue } = require("../queues/emailotp.queue.js");
+const db = require("../../db/knex.js");
+const { UNIQUE_CONSTRAINT_MAP, SAFE_USER_COLUMNS } = require("../utils/constants.js");
 
 const router = express.Router();
+
+
 
 //# Login
 //#--------------------------------------/
@@ -16,7 +20,7 @@ router.post("/login", async (req, res) => {
     const { userName, password } = req.body
 
     console.log(`Login attempt for username: ${userName}`);
-    const user = await User.findOne({ userName });
+    const user = await db("users").select("*").where({ userName }).first();
 
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid credentials" })
@@ -24,7 +28,7 @@ router.post("/login", async (req, res) => {
     const isPassowrdMatch = await bcrypt.compare(password, user.password)
     if (isPassowrdMatch) {
       const userProfilePayload = {
-        id: user._id,
+        id: user.id,
         role: "admin"
       }
       const aceessToken = jwt.sign(userProfilePayload, process.env.ACCESS_TOKEN_SECRET_KEY, { expiresIn: "1d" })
@@ -75,7 +79,7 @@ router.post("/logout", async (req, res) => {
 router.post("/signup", async (req, res) => {
   console.log(req.body);
 
-  const { firstName, lastName, email, phoneNumber, userName, password, dob } = req.body;
+  const { firstName, lastName, email, phoneNumber, userName, password, gender } = req.body;
 
   try {
     if (!firstName) {
@@ -98,6 +102,8 @@ router.post("/signup", async (req, res) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    //Mongo DB implementation
+    /**
     const user = new User({
       firstName,
       lastName,
@@ -109,21 +115,65 @@ router.post("/signup", async (req, res) => {
     });
 
     await user.save();
+ */
+
+    const [newUser] = await db("users")
+      .insert({
+        firstName,
+        lastName,
+        email,
+        phoneNumber,
+        userName,
+        password: passwordHash,
+        gender,
+      })
+      .returning(SAFE_USER_COLUMNS);
+
+
+    if (!newUser) {
+      throw new Error("Failed to create user");
+    }
 
     return res.status(201).json({
       message: "User created!",
       userData: {
-        firstName,
-        lastName,
-        userName,
-        email,
-        phoneNumber,
-        dob,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        userName: newUser.userName,
+        email: newUser.email,
+        phoneNumber: newUser.phoneNumber,
+        gender: newUser.gender,
       }
     });
   } catch (err) {
     console.error(err.stack);
-    return res.status(400).json({ error: err.message });
+
+    /** SQL DB Error Object
+      {
+        code: '23505',
+        detail: 'Key (userName)=(coder123) already exists.',
+        table: 'users',
+        constraint: 'users_username_unique'
+      }
+     */
+    if (err.code === '23505') {
+      const databaseConstraint = err.constraint ? err.constraint.toLowerCase() : '';
+
+      // Look up our predefined mapping rule
+      const conflictKey = Object.keys(UNIQUE_CONSTRAINT_MAP).find(
+        key => databaseConstraint.includes(key.toLowerCase())
+      );
+
+      if (conflictKey) {
+        const { field, message } = UNIQUE_CONSTRAINT_MAP[conflictKey];
+        return res.status(400).json({
+          status: "fail",
+          error: message,
+          field: field // 👈 Returns 'userName', 'phoneNumber', or 'email' dynamically
+        });
+      }
+    }
+    return res.status(500).json({ status: "error", error: "An unexpected error occurred." });
   }
 })
 
@@ -181,7 +231,7 @@ router.post("/generate-otp", async (req, res) => {
     )
 
     console.log("EmailOTP Job created", job.id);
-    await redisClient.set(`otpAttemptCount:${emailId}`, 0, {EX: 300});
+    await redisClient.set(`otpAttemptCount:${emailId}`, 0, { EX: 300 });
     return res.status(200).json({ success: true, message: "OTP sent successfully!" });
 
   } catch (err) {
@@ -259,7 +309,7 @@ router.post("/reset-password", async (req, res) => {
       return res.status(400).json({ success: false, message: "New Password cannot be same as old Password" });
     }
 
-    const user = await User.findOne({ email: emailId });
+    const user = await db("users").where({ email: emailId }).first();
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found!" })
@@ -271,8 +321,8 @@ router.post("/reset-password", async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid Password!" })
     }
 
-    user.password = await bcrypt.hash(newPassword, 10);
-    await user.save();
+    const newHashedPassword = await bcrypt.hash(newPassword, 10);
+    await db("users").where({ email: emailId }).update({password: newHashedPassword});
 
     await redisClient.del(`otp:${emailId}`);
     await redisClient.del(`otp:${emailId}:token`);
